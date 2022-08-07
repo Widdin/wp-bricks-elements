@@ -1,5 +1,5 @@
 ## 🎨 Custom Elements for [Bricks Builder](https://bricksbuilder.io/)
-Free custom elements for Bricks, the visual site builder for WordPress.
+Free custom elements for Bricks, the visual site builder for WordPress.  
 If you find the elements useful, click on the star ⭐ in the top-right corner of the page!
 
 ### Elements
