@@ -5,6 +5,8 @@
 
 ✔️ **Infinite Scroll** (Loads content continuously as the user scrolls down the page)  
 
-✔️ **Custom Settings** (Style categories, backgrounds, posts per page, etc)
+✔️ **Custom Settings** (Style categories, backgrounds, posts per page, etc)  
+
+✔️ **No jQuery** (Written in plain JavaScript)  
 
 ![gif showcasing the Posts Filter](posts-filter.gif)
