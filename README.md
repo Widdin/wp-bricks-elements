@@ -4,6 +4,7 @@ If you find the elements useful, click on the star ⭐ in the top-right corner o
 
 ### Elements
  * [Posts Filter](https://github.com/Widdin/wp-bricks-elements/tree/main/elements/posts-filter)
+ * [Gallery Filter](https://github.com/Widdin/wp-bricks-elements/tree/main/elements/gallery-filter)
 
 ## ⚙️ How to install
   1. [Click here](https://github.com/Widdin/wp-bricks-elements/archive/refs/heads/main.zip) (to download the ZIP-file)
