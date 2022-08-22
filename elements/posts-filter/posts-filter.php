@@ -67,6 +67,18 @@ class Wbe_Posts_Filter extends \Bricks\Element {
 			'default' => 9,
 		];
 		
+		
+		$this->controls['post_type'] = [
+			'tab'         => 'content',
+			'group'       => 'settings',
+			'label'       => esc_html__( 'Post type', 'bricks' ),
+			'type'        => 'select',
+			'options'     => $this->get_registered_post_types(),
+			'clearable'   => true,
+			'inline'      => true,
+			'default'     => 'post',
+		];
+		
 		$this->controls['filterActiveTypography'] = [
 			'tab' => 'content',
 			'group' => 'filterActive',
@@ -202,6 +214,11 @@ class Wbe_Posts_Filter extends \Bricks\Element {
 	public function render() {	
 		$this->set_attribute( '_root', 'class', 'wbe-element-container' );
 		echo "<{$this->tag} {$this->render_attributes( '_root' )}>";
+		
+		
+
+
+		
 		echo '<form action="' . esc_url( site_url() ) . '/wp-admin/admin-ajax.php" method="POST" id="filterForm">';
 						
 			if( $terms = get_terms( array( 'taxonomy' => 'category', 'orderby' => 'name' ) ) ) {
@@ -234,7 +251,7 @@ class Wbe_Posts_Filter extends \Bricks\Element {
 				echo "<input type='hidden' name='infinite_scroll' value='0'>";
 			}
 			
-			
+			echo "<input type='hidden' name='post_type' value='" . $this->settings['post_type']. "'>";
 			echo "<input type='hidden' name='posts_per_page' value='" . $this->settings['postsPerPage']. "'>";
 			echo '<input type="hidden" name="action" value="filterposts">';
 			echo '</form>';
@@ -246,6 +263,7 @@ class Wbe_Posts_Filter extends \Bricks\Element {
 	public function filter_posts(){
 		$paged = 1;
 		$posts_per_page = 9;
+		$post_type = 'post';
 
 		if( isset($_POST['paged'])) {
 			$paged = sanitize_text_field( $_POST['paged'] );
@@ -254,9 +272,13 @@ class Wbe_Posts_Filter extends \Bricks\Element {
 		if( isset($_POST['posts_per_page'])) {
 			$posts_per_page = sanitize_text_field( $_POST['posts_per_page'] );
 		}
+		
+		if( isset($_POST['post_type'])) {
+			$post_type = sanitize_text_field( $_POST['post_type'] );
+		}
 
 		$args = array(
-			'post_type' => 'post',
+			'post_type' => $post_type,
 			'post_status' => 'publish',
 			'paged' => $paged,
 			'posts_per_page' => $posts_per_page,
@@ -343,6 +365,25 @@ class Wbe_Posts_Filter extends \Bricks\Element {
 		}
 		
 		die();
+	}
+	
+	static function get_registered_post_types() {
+		$registered_post_types = get_post_types(
+			[ 'public' => true ],
+			'objects'
+		);
+
+		// Remove post types
+		unset( $registered_post_types['attachment'] );
+		unset( $registered_post_types[ BRICKS_DB_TEMPLATE_SLUG ] ); // Bricks templates always have builder support
+
+		$post_types = [];
+
+		foreach ( $registered_post_types as $key => $object ) {
+			$post_types[ $key ] = $object->label;
+		}
+
+		return $post_types;
 	}
 	
 }

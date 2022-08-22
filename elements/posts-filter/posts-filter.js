@@ -172,9 +172,9 @@ function incrementLoadMore() {
 }
 
 function infiniteScroll() {
-	const isInfinite = document.querySelector('input[name=infinite_scroll]').value === '1';
+	const isInfinite = document.querySelector('input[name=infinite_scroll]');
 	
-	if (isInfinite) {
+	if (isInfinite && isInfinite.value === '1') {
 		var loadMoreButton = document.getElementsByClassName("wbe-posts__load-more")[0];
 		
 		if (loadMoreButton) {
