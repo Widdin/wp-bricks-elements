@@ -9,7 +9,7 @@ class Wbe_Gallery_Filter extends \Bricks\Element {
 	public $icon         = 'ti-layout-list-thumb';
 	public $css_selector = '.wbe-gallery-filter-wrapper';
 	public $scripts      = ['wbeGallerySendAJAX'];
-	
+
 
 	public function get_label() {
 		return esc_html__( 'Gallery Filter', 'bricks' );
@@ -23,16 +23,11 @@ class Wbe_Gallery_Filter extends \Bricks\Element {
 	}
 	
 	public function set_control_groups() {
-		$this->control_groups['settings'] = [
-			'title' => esc_html__( 'Settings', 'bricks' ),
-			'tab' => 'content',
-		];
-		
 		$this->control_groups['filterActive'] = [
 			'title' => esc_html__( 'Filter Active', 'bricks' ),
 			'tab' => 'content',
 		];
-		
+
 		$this->control_groups['filter'] = [
 			'title' => esc_html__( 'Filter', 'bricks' ),
 			'tab' => 'content',
@@ -40,13 +35,29 @@ class Wbe_Gallery_Filter extends \Bricks\Element {
 	}
 
 	public function set_controls() {
+		$this->controls['settingsInfo'] = [
+			'type'    => 'info',
+			'content' => esc_html__( 'Select image size and the categories you want to show, then click "SAVE SETTINGS".', 'bricks' ),
+		];
+
+		$this->controls['categoryWhitelist'] = [
+			'tab' => 'content',
+			'label' => esc_html__( 'Categories', 'bricks' ),
+			'type' => 'select',
+			'options' => $this->get_happyfiles_terms_options(),
+			'inline' => true,
+			'placeholder' => esc_html__( 'Select', 'bricks' ),
+			'multiple' => true,
+			'searchable' => true,
+			'clearable' => true,
+		];
 
 		$this->controls['imageSize'] = [
 			'tab'      => 'content',
-			'group'    => 'settings',
 			'label'    => esc_html__( 'Image size', 'bricks' ),
 			'type'     => 'select',
 			'options'  => $this->control_options['imageSizes'],
+			'default' => 'full',
 		];
 
 		$this->controls['filterActiveTypography'] = [
@@ -134,6 +145,12 @@ class Wbe_Gallery_Filter extends \Bricks\Element {
 		  'inline' => true,
 		  'small' => true,
 		];
+
+		$this->controls['apply'] = [
+			'type'   => 'apply',
+			'reload' => true,
+			'label'  => esc_html__( 'Save settings', 'bricks' ),
+		];
 	}
 
 	public function enqueue_scripts() {
@@ -143,7 +160,6 @@ class Wbe_Gallery_Filter extends \Bricks\Element {
 	}
 
 	public function render() {	
-
 		if ( !$this->isHappyFilesActive() ) {
 			echo "HappyFiles is not installed/activated."; 
 			return;
@@ -155,7 +171,8 @@ class Wbe_Gallery_Filter extends \Bricks\Element {
 
 		<form action="<?php echo esc_url( site_url() ) ?>/wp-admin/admin-ajax.php" method="POST" id="filter">
 		<?php		
-			$terms_args = array( 'taxonomy' => 'happyfiles_category' );
+			$include = isset($this->settings['categoryWhitelist']) ? $this->settings['categoryWhitelist'] : -1;
+			$terms_args = array( 'taxonomy' => 'happyfiles_category', 'include' => $include );
 			$terms = get_terms( $terms_args );
 
 			if ( $terms ) {
@@ -178,27 +195,37 @@ class Wbe_Gallery_Filter extends \Bricks\Element {
 				echo 'No categories found.';
 			}
 		?>
-
-		<input type="hidden" name="imageSize" value="<?= $this->settings['imageSize'] ?>">
+		<input type="hidden" name="postId" value="<?= $this->post_id ?>">
+		<input type="hidden" name="formId" value="<?= $this->id ?>">
 		<input type="hidden" name="action" value="filtergallery">
 		</form>
 
 		<div id="response" class="wbe-gallery" />
 		<?php
-			
+
 		echo "</{$this->tag}>";
 	}
 
 	public function filter_gallery(){
-		$terms_args = array( 'taxonomy' => 'happyfiles_category', 'fields' => 'ids' );
+		$settings = \Bricks\Helpers::get_element_settings( sanitize_text_field($_POST['postId']), sanitize_text_field($_POST['formId']) );
+
+		$include = isset($settings['categoryWhitelist']) ? $settings['categoryWhitelist'] : null;
+
+		if ( is_null ( $include ) ) {
+			echo "No categories selected.";
+			die();
+		}
+
+		$terms_args = array( 'taxonomy' => 'happyfiles_category', 'fields' => 'ids' , 'include' => $include );
+
 		$terms = get_terms( $terms_args );
 
-		if ( isset( $_POST['gallery_category'] ) && $_POST['gallery_category'] != '-1' ) {
+		if ( isset( $_POST['gallery_category'] ) && $_POST['gallery_category'] != '-1' && in_array( $_POST['gallery_category'], $include )) {
 			$term_id = sanitize_text_field( $_POST['gallery_category'] );  
 			$terms = get_term_by( 'id', $term_id, 'happyfiles_category' )->term_id;
 		}
 
-		$image_size = isset( $_POST['imageSize'] ) ? sanitize_text_field( $_POST['imageSize'] ) : 'large';
+		$image_size = isset( $settings['imageSize'] ) ? $settings['imageSize'] : 'large';
 
 		$args = array(
 			'post_type' => 'attachment',
@@ -236,6 +263,20 @@ class Wbe_Gallery_Filter extends \Bricks\Element {
 		}
 
 		die();
+	}
+
+	public static function get_happyfiles_terms_options() {
+		$args = array( 'taxonomy' => 'happyfiles_category'  );
+
+		$terms = get_terms( $args );
+
+		$term_options = [];
+
+		foreach ( $terms as $term ) {
+			$term_options[ $term->term_id ] = $term->name;
+		}
+
+		return $term_options;
 	}
 
 	public function isHappyFilesActive() {
