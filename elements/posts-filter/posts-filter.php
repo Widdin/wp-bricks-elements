@@ -361,6 +361,7 @@ class Wbe_Posts_Filter extends \Bricks\Element {
 
 		// Remove post types
 		unset( $registered_post_types['attachment'] );
+		unset( $registered_post_types['product'] );
 		unset( $registered_post_types[ BRICKS_DB_TEMPLATE_SLUG ] ); // Bricks templates always have builder support
 
 		$post_types = [];
