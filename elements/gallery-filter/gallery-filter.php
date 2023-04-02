@@ -60,6 +60,19 @@ class Wbe_Gallery_Filter extends \Bricks\Element {
 			'default' => 'full',
 		];
 
+		$this->controls['link'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Link to', 'bricks' ),
+			'type'        => 'select',
+			'options'     => [
+				'lightbox'   => esc_html__( 'Lightbox', 'bricks' ),
+				'attachment' => esc_html__( 'Attachment Page', 'bricks' ),
+				'media'      => esc_html__( 'Media File', 'bricks' ),
+			],
+			'inline'      => true,
+			'placeholder' => esc_html__( 'None', 'bricks' ),
+		];
+
 		$this->controls['filterActiveTypography'] = [
 			'tab' => 'content',
 			'group' => 'filterActive',
@@ -157,59 +170,66 @@ class Wbe_Gallery_Filter extends \Bricks\Element {
 		wp_enqueue_script( 'wbe-gallery-filter', plugin_dir_url( __FILE__ ) . 'gallery-filter.js', null, '1.0', true );
 		wp_enqueue_style( 'wbe-gallery-filter', plugin_dir_url( __FILE__ ) . 'gallery-filter.css' );
 		wp_enqueue_script('masonry');
+		
+		$link_to = ! empty( $this->settings['link'] ) ? $this->settings['link'] : false;
+
+		if ( $link_to === 'lightbox' ) {
+			wp_enqueue_script( 'bricks-photoswipe' );
+			wp_enqueue_style( 'bricks-photoswipe' );
+		}
 	}
 
 	public function render() {	
-		if ( !$this->isHappyFilesActive() ) {
-			echo "HappyFiles is not installed/activated."; 
-			return;
-		}
-
 		$this->set_attribute( '_root', 'class', 'wbe-gallery-filter-container' );
 		echo "<{$this->tag} {$this->render_attributes( '_root' )}>";
-		?>
 
-		<form action="<?php echo esc_url( site_url() ) ?>/wp-admin/admin-ajax.php" method="POST" id="filter">
-		<?php		
-			$include = isset($this->settings['categoryWhitelist']) ? $this->settings['categoryWhitelist'] : -1;
-			$terms_args = array( 'taxonomy' => 'happyfiles_category', 'include' => $include );
-			$terms = get_terms( $terms_args );
+		if ( !$this->isHappyFilesActive() ) {
+			echo "HappyFiles is not installed/activated."; 
+		} else {
+			?>
+			<form action="<?php echo esc_url( site_url() ) ?>/wp-admin/admin-ajax.php" method="POST" id="filter">
+			<?php		
+				$include = isset($this->settings['categoryWhitelist']) ? $this->settings['categoryWhitelist'] : -1;
+				$terms_args = array( 'taxonomy' => 'happyfiles_category', 'include' => $include );
+				$terms = get_terms( $terms_args );
 
-			if ( $terms ) {
-				echo '<div class="wbe-gallery__radio-toolbar">';
+				if ( $terms ) {
+					echo '<div class="wbe-gallery__radio-toolbar">';
 
-				$output = '';
-				$count_total = array_sum ( array_column( $terms , 'count' ) );
+					$output = '';
+					$count_total = array_sum ( array_column( $terms , 'count' ) );
 
-				foreach( $terms as $term ) {
-					$input = '<input id="' . esc_html( $term->slug ) . '" type="radio" class="wbe-gallery__gallery-filter" name="gallery_category" value="' . esc_html( $term->term_id ) . '" />';
-					$label =  '<label for="' . esc_html( $term->slug ) . '" class="wbe-gallery__radio-filter">' . esc_html( $term->name ) . " (" . esc_html( $term->count ). ') </label>';
-					$output .= $input . $label;
+					foreach( $terms as $term ) {
+						$input = '<input id="' . esc_html( $term->slug ) . '" type="radio" class="wbe-gallery__gallery-filter" name="gallery_category" value="' . esc_html( $term->term_id ) . '" />';
+						$label =  '<label for="' . esc_html( $term->slug ) . '" class="wbe-gallery__radio-filter">' . esc_html( $term->name ) . " (" . esc_html( $term->count ). ') </label>';
+						$output .= $input . $label;
+					}
+
+					echo '<input id="all" type="radio" class="wbe-gallery__gallery-filter" name="gallery_category" value="-1" checked />';
+					echo '<label for="all">All (' . esc_html( $count_total ) . ')</label>';
+					echo $output;
+					echo '</div>';
+				} else {
+					echo 'No categories found.';
 				}
+			?>
+			<input type="hidden" name="postId" value="<?= $this->post_id ?>">
+			<input type="hidden" name="formId" value="<?= $this->id ?>">
+			<input type="hidden" name="action" value="filtergallery">
+			</form>
 
-				echo '<input id="all" type="radio" class="wbe-gallery__gallery-filter" name="gallery_category" value="-1" checked />';
-				echo '<label for="all">All (' . esc_html( $count_total ) . ')</label>';
-				echo $output;
-				echo '</div>';
-			} else {
-				echo 'No categories found.';
-			}
-		?>
-		<input type="hidden" name="postId" value="<?= $this->post_id ?>">
-		<input type="hidden" name="formId" value="<?= $this->id ?>">
-		<input type="hidden" name="action" value="filtergallery">
-		</form>
+			<div id="response" class="wbe-gallery" />
+			<?php
 
-		<div id="response" class="wbe-gallery" />
-		<?php
-
-		echo "</{$this->tag}>";
+			echo "</{$this->tag}>";
+		}
 	}
 
 	public function filter_gallery(){
 		$settings = \Bricks\Helpers::get_element_settings( sanitize_text_field($_POST['postId']), sanitize_text_field($_POST['formId']) );
 
 		$include = isset($settings['categoryWhitelist']) ? $settings['categoryWhitelist'] : null;
+		$link_to  = ! empty( $settings['link'] ) ? $settings['link'] : false;
 
 		if ( is_null ( $include ) ) {
 			echo "No categories selected.";
@@ -249,12 +269,31 @@ class Wbe_Gallery_Filter extends \Bricks\Element {
 			shuffle( $images );
 
 			foreach($images as $index => $id) {
+				$close_a_tag = false;
 				$atts = wp_get_attachment_image_src( $id, $image_size);
 				$src 	= wp_get_attachment_image_url( $id , $image_size);
 				$srcset = wp_get_attachment_image_srcset( $id , $image_size);
 				$sizes 	= wp_get_attachment_image_sizes( $id , $image_size);
+				
+				if ( $link_to === 'media' ) {
+					$close_a_tag = true;
+					echo '<a class="wbe-gallery__link" href="' . esc_url( $src ) . '" target="_blank">';
+				} elseif ( $link_to === 'attachment' ) {
+					$close_a_tag = true;
+					echo '<a class="wbe-gallery__link" href="' . get_permalink( $id ) . '" target="_blank">';
+				}
+				
+				$classList = "lazy wbe-gallery__loading wbe-gallery__image";
 
-				echo '<img style="aspect-ratio: '.esc_html( $atts[1].'/'.$atts[2] ) .';" class="lazy wbe-gallery__loading wbe-gallery__image" data-src="'. $src .'" data-srcset="' . $srcset . '" sizes="' . esc_attr( $sizes ) . '" />';
+				if ( $link_to === 'lightbox' ) {
+					$classList = "lazy wbe-gallery__loading wbe-gallery__image wbe-gallery__lightbox";
+				} 
+				
+				echo '<img style="aspect-ratio: '.esc_html( $atts[1].'/'.$atts[2] ) .';" class="' . $classList . '" data-src="'. $src .'" data-srcset="' . $srcset . '" sizes="' . esc_attr( $sizes ) . '" />';
+				
+				if ($close_a_tag) {
+					echo "</a>";
+				}
 			}
 
 			wp_reset_postdata();
@@ -266,17 +305,23 @@ class Wbe_Gallery_Filter extends \Bricks\Element {
 	}
 
 	public static function get_happyfiles_terms_options() {
-		$args = array( 'taxonomy' => 'happyfiles_category'  );
+		$taxonomy = 'happyfiles_category';
 
-		$terms = get_terms( $args );
+		if ( taxonomy_exists($taxonomy) ) {
+			$args = array( 'taxonomy' => $taxonomy  );
 
-		$term_options = [];
+			$terms = get_terms( $args );
 
-		foreach ( $terms as $term ) {
-			$term_options[ $term->term_id ] = $term->name;
+			$term_options = [];
+			
+			foreach ( $terms as $term ) {
+				$term_options[ $term->term_id ] = $term->name;
+			}
+
+			return $term_options;
 		}
 
-		return $term_options;
+		return [];
 	}
 
 	public function isHappyFilesActive() {
